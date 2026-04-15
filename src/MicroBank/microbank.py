@@ -41,16 +41,44 @@ def save_transaction(file_name, date, typ, amount):
         file.write(f"{date}, {typ}, {amount:.2f}\n")
 
 
-def interactive_mode(balance, file_name):
+def show_ledger(file_name):
+    """Display all transactions from the ledger"""
+    records = read_data(file_name)
+    if not records:
+        print("No transactions found.")
+        return
+    
+    print("\n" + "="*60)
+    print(f"{'Date':<12} {'Type':<12} {'Amount':<12} {'Balance':<12}")
+    print("="*60)
+    balance = 0.0
+    for date, typ, amount in records:
+        if typ == 'deposit':
+            balance += amount
+        elif typ == 'withdrawal':
+            balance -= amount
+        print(f"{date:<12} {typ:<12} ${amount:>10.2f} ${balance:>10.2f}")
+    print("="*60)
+
+# Allow user to interactively perform transactions
+def interactive_mode(balance, file_name): 
     """Allow user to interactively perform transactions"""
     while True:
         print(f"\nCurrent Balance: ${balance:.2f}")
-        command = input("Enter command (deposit/withdrawal/quit): ").strip().lower()
+        print("\n--- Menu ---")
+        print("1. Deposit")
+        print("2. Withdrawal")
+        print("3. Show Ledger")
+        print("4. Quit")
         
-        if command == 'quit':
+        choice = input("\nSelect an option (1-4): ").strip()
+        
+        if choice == '4':
             print(f"Final Balance: ${balance:.2f}")
             break
-        elif command == 'deposit':
+        elif choice == '3':
+            show_ledger(file_name)
+        elif choice == '1':
             try:
                 date_input = input("Enter date (MM/DD/YYYY) or press Enter for today: ").strip()
                 if not date_input:
@@ -64,7 +92,7 @@ def interactive_mode(balance, file_name):
                     print("Amount must be positive!")
             except ValueError:
                 print("Invalid amount or date entered!")
-        elif command == 'withdrawal':
+        elif choice == '2':
             try:
                 date_input = input("Enter date (MM/DD/YYYY) or press Enter for today: ").strip()
                 if not date_input:
@@ -81,11 +109,11 @@ def interactive_mode(balance, file_name):
             except ValueError:
                 print("Invalid amount or date entered!")
         else:
-            print("Invalid command! Use 'deposit', 'withdrawal', or 'quit'.")
+            print("Invalid choice! Please select 1-4.")
     
     return balance
 
-
+# Main function to run the program
 def main():
     parser = argparse.ArgumentParser(description='Process a transactions file')
     parser.add_argument('input_file', nargs='?', default='input.data',

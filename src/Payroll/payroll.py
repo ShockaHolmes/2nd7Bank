@@ -201,12 +201,91 @@ if __name__ == '__main__':
                         print(f'Wrote {len(payroll)} rows to {fname}')
     else:
         # default behavior: show a small menu to enter payroll or read saved payroll
+        def compute_from_inputs(gross, taxes, net, tax_rate, orig_gross=None, orig_taxes=None):
+            # compute missing values using rules from interactive_input
+            # If gross changed and taxes left blank, prefer proportional update
+            if gross is not None and taxes is not None and net is None:
+                net = gross - taxes
+            elif gross is not None and net is not None and taxes is None:
+                taxes = gross - net
+            elif taxes is not None and net is not None and gross is None:
+                gross = taxes + net
+            elif gross is not None and taxes is None and net is None:
+                # If original taxes/gross available, preserve the same ratio
+                if orig_gross and orig_gross > 0 and orig_taxes is not None:
+                    rate = orig_taxes / orig_gross
+                    taxes = gross * rate
+                else:
+                    taxes = gross * tax_rate
+                net = gross - taxes
+            elif taxes is not None and gross is None and net is None:
+                if tax_rate <= 0:
+                    return None, None, None
+                gross = taxes / tax_rate
+                net = gross - taxes
+            return gross, taxes, net
+
+        def edit_saved_file(fname, tax_rate):
+            if not os.path.exists(fname):
+                print(f'File not found: {fname}')
+                return
+            payroll = process_input_file(fname, tax_rate=tax_rate)
+            if not payroll:
+                print(f'No valid rows parsed from {fname}')
+                return
+            while True:
+                print('\nLoaded payroll:')
+                for i, (name, gross, taxes, net) in enumerate(payroll, start=1):
+                    print(f"{i}) {name:<20} {gross:>10.2f} {taxes:>10.2f} {net:>10.2f}")
+                sel = input('Enter row number to edit (or blank to return to menu): ').strip()
+                if sel == '':
+                    break
+                try:
+                    idx = int(sel) - 1
+                    if idx < 0 or idx >= len(payroll):
+                        print('Invalid row number')
+                        continue
+                except ValueError:
+                    print('Please enter a number')
+                    continue
+
+                name, gross, taxes, net = payroll[idx]
+                print(f'Editing row {sel}: {name}, Gross={gross}, Taxes={taxes}, Net={net}')
+                new_name = input(f'Name [{name}]: ').strip() or name
+                def read_val(prompt, old):
+                    s = input(f"{prompt} [{old}]: ").strip()
+                    return None if s == '' else s
+
+                g_s = read_val('Gross pay', f'{gross:.2f}')
+                t_s = read_val('Taxes', f'{taxes:.2f}')
+                n_s = read_val('Net pay', f'{net:.2f}')
+                try:
+                    g_v = float(g_s) if g_s is not None else None
+                    t_v = float(t_s) if t_s is not None else None
+                    n_v = float(n_s) if n_s is not None else None
+                except ValueError:
+                    print('Invalid number entered; edit cancelled for this row.')
+                    continue
+
+                g_v, t_v, n_v = compute_from_inputs(g_v, t_v, n_v, tax_rate)
+                if g_v is None or t_v is None or n_v is None:
+                    print('Could not compute complete values; edit cancelled.')
+                    continue
+                payroll[idx] = (new_name, g_v, t_v, n_v)
+                print('Row updated.')
+
+                save = input('Save changes to file now? (y/N): ').strip().lower()
+                if save == 'y':
+                    write_output(fname, payroll)
+                    print(f'Wrote {len(payroll)} rows to {fname}')
+
         def run_menu(tax_rate=0.2):
             while True:
                 print('\nPayroll Menu:')
                 print('1) Enter payroll (interactive)')
                 print('2) Read payroll from file')
-                print('3) Quit')
+                print('3) Update payroll file')
+                print('4) Quit')
                 choice = input('Select an option: ').strip()
                 if choice == '1':
                     payroll = interactive_input(tax_rate=tax_rate)
@@ -230,11 +309,16 @@ if __name__ == '__main__':
                             print(f'No valid rows parsed from {fname}')
                     else:
                         print(f'File not found: {fname}')
-                elif choice in ('3', 'q', 'quit', 'exit'):
+                elif choice == '3':
+                    fname = input('Enter filename to update (default input.data): ').strip()
+                    if not fname:
+                        fname = 'input.data'
+                    edit_saved_file(fname, tax_rate=args.tax_rate)
+                elif choice in ('4', 'q', 'quit', 'exit'):
                     print('Exiting.')
                     break
                 else:
-                    print('Invalid option — choose 1, 2, or 3.')
+                    print('Invalid option — choose 1, 2, 3, or 4.')
 
         run_menu(tax_rate=args.tax_rate)
 

@@ -7,6 +7,8 @@ def read_data(file_name):
         csv_reader = csv.reader(file)
         data = [row for row in csv_reader]
     return data
+
+#input_data = read_data('input.data')
     # data is a list of lists, where each inner list represents a row from the CSV file
 
 def calculate_payroll(data):
@@ -55,11 +57,11 @@ def process_input_file(file_name, tax_rate=0.2):
                 # otherwise look for hours and rate
                 hours = None
                 rate = None
-                for hk in ('hours_worked', 'hours worked', 'hours'):
+                for hk in ('hours_worked', 'hours worked', 'hours', 'hours-worked'):
                     if hk in row_norm and row_norm[hk] != '':
                         hours = float(row_norm[hk])
                         break
-                for rk in ('hourly_rate', 'hourly rate', 'rate', 'hourlyrate'):
+                for rk in ('hourly_rate', 'hourly rate', 'rate', 'hourlyrate', 'hourly-rate'):
                     if rk in row_norm and row_norm[rk] != '':
                         rate = float(row_norm[rk])
                         break
@@ -102,15 +104,10 @@ def write_output(file_name, payroll):
 def interactive_input(tax_rate=0.2):
     """Prompt the user to enter payroll rows interactively.
 
-    The user may enter any combination of Gross, Taxes, Net-pay. Missing
-    numeric fields are computed where possible using `tax_rate`.
-
-    Computation rules:
-    - If only Gross provided -> Taxes = Gross * tax_rate, Net = Gross - Taxes
-    - If Gross + Taxes provided -> Net = Gross - Taxes
-    - If Gross + Net provided -> Taxes = Gross - Net
-    - If Taxes + Net provided -> Gross = Taxes + Net
-    - If only Taxes provided -> Gross = Taxes / tax_rate (if tax_rate > 0)
+    The user is prompted for Name, Hours-worked, and Hourly-rate.
+    Gross pay is calculated as: Hours-worked * Hourly-rate
+    Taxes are calculated as: Gross pay * tax_rate
+    Net pay is calculated as: Gross pay - Taxes
     """
     payroll = []
     while True:
@@ -118,48 +115,21 @@ def interactive_input(tax_rate=0.2):
         if not name:
             break
 
-        def read_optional(prompt):
-            s = input(prompt).strip()
-            return None if s == '' else s
-
-        gross_s = read_optional("Gross pay (blank to skip): ")
-        taxes_s = read_optional("Taxes (blank to skip): ")
-        net_s = read_optional("Net pay (blank to skip): ")
-
-        # parse numbers
         try:
-            gross = float(gross_s) if gross_s is not None else None
-            taxes = float(taxes_s) if taxes_s is not None else None
-            net = float(net_s) if net_s is not None else None
+            hours_worked = float(input("Hours-worked: ").strip())
+            hourly_rate = float(input("Hourly-rate: ").strip())
         except ValueError:
             print("Invalid number entered — please try this row again.")
             continue
 
-        # compute missing values
-        if gross is not None and taxes is not None and net is None:
-            net = gross - taxes
-        elif gross is not None and net is not None and taxes is None:
-            taxes = gross - net
-        elif taxes is not None and net is not None and gross is None:
-            gross = taxes + net
-        elif gross is not None and taxes is None and net is None:
-            taxes = gross * tax_rate
-            net = gross - taxes
-        elif taxes is not None and gross is None and net is None:
-            if tax_rate <= 0:
-                print("Cannot compute gross from taxes with non-positive tax rate.")
-                continue
-            gross = taxes / tax_rate
-            net = gross - taxes
-
-        # if still missing necessary fields, skip
-        if gross is None or taxes is None or net is None:
-            print("Insufficient numeric data to compute row — please provide at least two values or gross alone.")
-            continue
+        # compute gross pay, taxes, and net pay
+        gross = hours_worked * hourly_rate
+        taxes = gross * tax_rate
+        net = gross - taxes
 
         # sanity checks
-        if gross < 0 or taxes < 0 or net < 0:
-            print("Numeric values must be non-negative — try again.")
+        if hours_worked < 0 or hourly_rate < 0:
+            print("Hours-worked and Hourly-rate must be non-negative — try again.")
             continue
 
         payroll.append((name, gross, taxes, net))
@@ -256,22 +226,27 @@ if __name__ == '__main__':
                     s = input(f"{prompt} [{old}]: ").strip()
                     return None if s == '' else s
 
-                g_s = read_val('Gross pay', f'{gross:.2f}')
-                t_s = read_val('Taxes', f'{taxes:.2f}')
-                n_s = read_val('Net pay', f'{net:.2f}')
+                h_s = read_val('Hours-worked', f'{gross / 20:.2f}')
+                r_s = read_val('Hourly-rate', '20.00')
                 try:
-                    g_v = float(g_s) if g_s is not None else None
-                    t_v = float(t_s) if t_s is not None else None
-                    n_v = float(n_s) if n_s is not None else None
+                    h_v = float(h_s) if h_s is not None else None
+                    r_v = float(r_s) if r_s is not None else None
                 except ValueError:
                     print('Invalid number entered; edit cancelled for this row.')
                     continue
 
-                g_v, t_v, n_v = compute_from_inputs(g_v, t_v, n_v, tax_rate)
-                if g_v is None or t_v is None or n_v is None:
-                    print('Could not compute complete values; edit cancelled.')
+                if h_v is None or r_v is None:
+                    print('Hours-worked and Hourly-rate are required.')
                     continue
-                payroll[idx] = (new_name, g_v, t_v, n_v)
+
+                if h_v < 0 or r_v < 0:
+                    print('Hours-worked and Hourly-rate must be non-negative.')
+                    continue
+
+                new_gross = h_v * r_v
+                new_taxes = new_gross * tax_rate
+                new_net = new_gross - new_taxes
+                payroll[idx] = (new_name, new_gross, new_taxes, new_net)
                 print('Row updated.')
 
                 save = input('Save changes to file now? (y/N): ').strip().lower()

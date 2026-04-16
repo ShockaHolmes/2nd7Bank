@@ -93,6 +93,30 @@ def print_payroll(payroll):
     for name, total_pay, taxes, net_pay in payroll:
         print(f"{name:<20} {total_pay:<15.2f} {taxes:<10.2f} {net_pay:<10.2f}")
 
+def calculate_total_netpay(payroll):
+    """Calculate the total netpay for all employees in the payroll."""
+    total_netpay = sum(net_pay for _, _, _, net_pay in payroll)
+    return total_netpay
+
+def print_payroll_summary(payroll):
+    """Print a summary of the payroll including total netpay."""
+    if not payroll:
+        print("No payroll data available.")
+        return
+    
+    total_gross = sum(total_pay for _, total_pay, _, _ in payroll)
+    total_taxes = sum(taxes for _, _, taxes, _ in payroll)
+    total_netpay = sum(net_pay for _, _, _, net_pay in payroll)
+    
+    print("\n" + "="*60)
+    print("PAYROLL SUMMARY")
+    print("="*60)
+    print(f"Total Employees: {len(payroll)}")
+    print(f"Total Gross Pay: ${total_gross:,.2f}")
+    print(f"Total Taxes:     ${total_taxes:,.2f}")
+    print(f"Total Net Pay:   ${total_netpay:,.2f}")
+    print("="*60 + "\n")
+
 def write_output(file_name, payroll):
     with open(file_name, 'w', newline='') as file:
         csv_writer = csv.writer(file)
@@ -206,7 +230,7 @@ if __name__ == '__main__':
             while True:
                 print('\nLoaded payroll:')
                 for i, (name, gross, taxes, net) in enumerate(payroll, start=1):
-                    print(f"{i}) {name:<20} {gross:>10.2f} {taxes:>10.2f} {net:>10.2f}")
+                    print(f"{i}) {name:<20} {gross:>10, .2f} {taxes:>10,.2f} {net:>10,.2f}")
                 sel = input('Enter row number to edit (or blank to return to menu): ').strip()
                 if sel == '':
                     break
@@ -255,12 +279,14 @@ if __name__ == '__main__':
                     print(f'Wrote {len(payroll)} rows to {fname}')
 
         def run_menu(tax_rate=0.2):
+            payroll = []
             while True:
                 print('\nPayroll Menu:')
                 print('1) Enter payroll (interactive)')
                 print('2) Read payroll from file')
-                print('3) Update payroll file')
-                print('4) Quit')
+                print('3) View payroll summary (netpay)')
+                print('4) Update payroll file')
+                print('5) Quit')
                 choice = input('Select an option: ').strip()
                 if choice == '1':
                     payroll = interactive_input(tax_rate=tax_rate)
@@ -285,15 +311,20 @@ if __name__ == '__main__':
                     else:
                         print(f'File not found: {fname}')
                 elif choice == '3':
+                    if payroll:
+                        print_payroll_summary(payroll)
+                    else:
+                        print('No payroll data loaded. Please load or enter payroll data first.')
+                elif choice == '4':
                     fname = input('Enter filename to update (default input.data): ').strip()
                     if not fname:
                         fname = 'input.data'
                     edit_saved_file(fname, tax_rate=args.tax_rate)
-                elif choice in ('4', 'q', 'quit', 'exit'):
+                elif choice in ('5', 'q', 'quit', 'exit'):
                     print('Exiting.')
                     break
                 else:
-                    print('Invalid option — choose 1, 2, 3, or 4.')
+                    print('Invalid option — choose 1, 2, 3, 4, or 5.')
 
         run_menu(tax_rate=args.tax_rate)
 
